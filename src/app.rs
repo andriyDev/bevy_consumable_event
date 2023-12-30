@@ -5,6 +5,8 @@ use crate::ConsumableEvents;
 
 pub trait ConsumableEventApp {
   fn add_consumable_event<E: Event>(&mut self);
+
+  fn add_persistent_consumable_event<E: Event>(&mut self);
 }
 
 impl ConsumableEventApp for App {
@@ -13,8 +15,18 @@ impl ConsumableEventApp for App {
       .init_resource::<ConsumableEvents<E>>()
       .add_systems(First, clear_all_events::<E>);
   }
+
+  fn add_persistent_consumable_event<E: Event>(&mut self) {
+    self
+      .init_resource::<ConsumableEvents<E>>()
+      .add_systems(First, clear_consumed_events::<E>);
+  }
 }
 
 fn clear_all_events<E: Event>(mut events: ResMut<ConsumableEvents<E>>) {
   events.clear();
+}
+
+fn clear_consumed_events<E: Event>(mut events: ResMut<ConsumableEvents<E>>) {
+  events.clear_consumed();
 }
