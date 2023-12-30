@@ -8,6 +8,11 @@ use bevy_ecs::{
   system::{ResMut, Resource, SystemParam},
 };
 
+#[cfg(feature = "bevy_app")]
+mod app;
+#[cfg(feature = "bevy_app")]
+pub use app::ConsumableEventApp;
+
 #[derive(Resource)]
 pub struct ConsumableEvents<E: Event> {
   events: Vec<EventInstance<E>>,
