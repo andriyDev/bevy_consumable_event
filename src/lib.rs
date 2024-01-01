@@ -47,6 +47,10 @@ impl<E: Event> ConsumableEvents<E> {
     self.send(Default::default())
   }
 
+  pub fn read(&mut self) -> ConsumableEventIterator<E> {
+    ConsumableEventIterator { iter: self.events.iter_mut() }
+  }
+
   pub fn clear(&mut self) {
     self.events.clear();
   }
@@ -121,7 +125,7 @@ pub struct ConsumableEventReader<'w, E: Event> {
 
 impl<'w, E: Event> ConsumableEventReader<'w, E> {
   pub fn read(&mut self) -> ConsumableEventIterator<E> {
-    ConsumableEventIterator { iter: self.events.events.iter_mut() }
+    self.events.read()
   }
 }
 
