@@ -3,6 +3,8 @@ name = "bevy_consumable_event"
 version = "0.1.0"
 edition = "2021"
 
+description = "A crate to add events to Bevy that can be consumed."
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 license = "MIT OR Apache-2.0"
 readme = "README.md"
