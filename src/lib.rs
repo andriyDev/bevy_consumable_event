@@ -261,7 +261,7 @@ impl<'w, E: Event> Iterator for ConsumableEventIterator<'w, E> {
   type Item = Consume<'w, E>;
 
   fn next(&mut self) -> Option<Self::Item> {
-    self.iter.next().filter(|event_instance| !event_instance.consumed).map(
+    self.iter.find(|event_instance| !event_instance.consumed).map(
       |event_instance| Consume {
         event: &mut event_instance.event,
         consumed: &mut event_instance.consumed,
