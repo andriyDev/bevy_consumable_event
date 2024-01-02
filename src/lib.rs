@@ -275,3 +275,118 @@ impl<'w, E: Event> Iterator for ConsumableEventIterator<'w, E> {
     (0, self.iter.size_hint().1)
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[derive(Event, Default)]
+  struct TestEvent {
+    value: usize,
+  }
+
+  #[test]
+  fn consumed_events_are_not_read() {
+    let mut events = ConsumableEvents::<TestEvent>::default();
+
+    events.send(TestEvent { value: 1 });
+    events.send(TestEvent { value: 2 });
+    events.send(TestEvent { value: 3 });
+    events.send(TestEvent { value: 4 });
+
+    for mut event in events.read().filter(|event| event.value % 3 == 1) {
+      event.consume();
+    }
+
+    let unconsumed_values =
+      events.read().map(|event| event.value).collect::<Vec<_>>();
+    assert_eq!(unconsumed_values, [2, 3]);
+  }
+
+  #[test]
+  fn cleared_events_are_not_read() {
+    let mut events = ConsumableEvents::<TestEvent>::default();
+
+    events.send(TestEvent { value: 1 });
+    events.send(TestEvent { value: 2 });
+    events.send(TestEvent { value: 3 });
+    events.send(TestEvent { value: 4 });
+
+    events.clear();
+
+    assert_eq!(events.read().count(), 0);
+  }
+
+  #[test]
+  fn clear_consumed_removes_consumed_events() {
+    let mut events = ConsumableEvents::<TestEvent>::default();
+
+    events.send(TestEvent { value: 1 });
+    events.send(TestEvent { value: 2 });
+    events.send(TestEvent { value: 3 });
+    events.send(TestEvent { value: 4 });
+
+    events.read().skip(2).for_each(|mut event| event.consume());
+
+    assert_eq!(events.read().count(), 2);
+    assert_eq!(events.events.len(), 4);
+
+    events.clear_consumed();
+
+    assert_eq!(events.read().count(), 2);
+    assert_eq!(events.events.len(), 2);
+  }
+
+  #[test]
+  fn send_batch() {
+    let mut events = ConsumableEvents::<TestEvent>::default();
+
+    events.send_batch((0..5).map(|value| TestEvent { value }));
+
+    let values = events.read().map(|event| event.value).collect::<Vec<_>>();
+    assert_eq!(values, [0, 1, 2, 3, 4]);
+  }
+
+  #[test]
+  fn send_default() {
+    let mut events = ConsumableEvents::<TestEvent>::default();
+
+    events.send_default();
+    events.send_default();
+    events.send_default();
+
+    let values = events.read().map(|event| event.value).collect::<Vec<_>>();
+    assert_eq!(values, [0, 0, 0]);
+  }
+
+  #[test]
+  fn write_and_read_events_through_systems() {
+    use bevy_ecs::prelude::*;
+
+    let mut world = World::new();
+    world.init_resource::<ConsumableEvents<TestEvent>>();
+
+    let mut schedule = Schedule::default();
+    schedule.add_systems(
+      (
+        |mut events: ConsumableEventWriter<TestEvent>| {
+          events.send(TestEvent { value: 0 });
+          events.send_batch((1..=2).map(|value| TestEvent { value }));
+          events.send_default();
+        },
+        |mut events: ResMut<ConsumableEvents<TestEvent>>| {
+          assert_eq!(events.read().count(), 4);
+        },
+        |mut events: ConsumableEventReader<TestEvent>| {
+          events.read().for_each(|mut event| event.consume());
+        },
+        |mut events: ResMut<ConsumableEvents<TestEvent>>| {
+          assert_eq!(events.read().count(), 0);
+        },
+      )
+        .chain(),
+    );
+    schedule.run(&mut world);
+    assert_eq!(world.resource::<ConsumableEvents<TestEvent>>().events.len(), 4);
+  }
+}

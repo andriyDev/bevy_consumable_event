@@ -54,3 +54,93 @@ fn clear_all_events<E: Event>(mut events: ResMut<ConsumableEvents<E>>) {
 fn clear_consumed_events<E: Event>(mut events: ResMut<ConsumableEvents<E>>) {
   events.clear_consumed();
 }
+
+#[cfg(test)]
+mod tests {
+  use crate::*;
+  use bevy::prelude::*;
+
+  #[derive(Event, Default)]
+  struct TestEvent {
+    value: usize,
+  }
+
+  fn run_first_schedule(world: &mut World) {
+    world.run_schedule(First);
+  }
+
+  fn write_events(mut events: ConsumableEventWriter<TestEvent>) {
+    for value in 0..10 {
+      events.send(TestEvent { value });
+    }
+  }
+
+  fn consume_odds_and_halve_evens(
+    mut events: ConsumableEventReader<TestEvent>,
+  ) {
+    for mut event in events.read() {
+      if event.value % 2 == 1 {
+        event.consume();
+      } else {
+        event.value /= 2;
+      }
+    }
+  }
+
+  #[test]
+  fn add_consumable_event() {
+    let mut app = App::empty();
+    app.add_consumable_event::<TestEvent>().add_systems(
+      Main,
+      (run_first_schedule, write_events, consume_odds_and_halve_evens).chain(),
+    );
+
+    app.update();
+    let values = app
+      .world
+      .resource_mut::<ConsumableEvents<TestEvent>>()
+      .read()
+      .map(|event| event.value)
+      .collect::<Vec<_>>();
+    assert_eq!(values, [0, 1, 2, 3, 4]);
+
+    app.update();
+    let values = app
+      .world
+      .resource_mut::<ConsumableEvents<TestEvent>>()
+      .read()
+      .map(|event| event.value)
+      .collect::<Vec<_>>();
+    // All the events were cleared, so everything started from scratch.
+    assert_eq!(values, [0, 1, 2, 3, 4]);
+  }
+
+  #[test]
+  fn add_persistent_consumable_event() {
+    let mut app = App::empty();
+    app.add_persistent_consumable_event::<TestEvent>().add_systems(
+      Main,
+      (run_first_schedule, write_events, consume_odds_and_halve_evens).chain(),
+    );
+
+    app.update();
+    let values = app
+      .world
+      .resource_mut::<ConsumableEvents<TestEvent>>()
+      .read()
+      .map(|event| event.value)
+      .collect::<Vec<_>>();
+    assert_eq!(values, [0, 1, 2, 3, 4]);
+
+    app.update();
+    let values = app
+      .world
+      .resource_mut::<ConsumableEvents<TestEvent>>()
+      .read()
+      .map(|event| event.value)
+      .collect::<Vec<_>>();
+    // The old events were consumed/halved, but also a new batch of events were
+    // consumed/halved.
+    assert_eq!(values, [0, 1, 2, 0, 1, 2, 3, 4]);
+  }
+}
