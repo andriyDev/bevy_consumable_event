@@ -104,6 +104,23 @@ fn assert_remaining_events(mut events: ConsumableEventReader<MyEvent>) {
 }
 ```
 
+## Caveats
+
+Events and consumable events are not exclusive - it is possible to make add a
+type as a regular event **and** a consumable event. Consumable events don't care
+interact at all with regular events, so everything will work fine. It just may
+be confusing.
+
+Events also have multiple strategies to 1) prevent systems from double-reading
+events, and 2) prevent systems from missing events. For consumable events, the
+hope is these solutions aren't necessary. If you are using non-persistent
+consumable events, then a double read shouldn't occur (except from FixedUpdate
+systems). Regardless, these are just extra opportunities to consume the events.
+Missing events is fine since the assumption going in is that the events are
+consumed as they head towards the end of the frame. If you *are* using
+persistent consumable events, then a double read is expected. Missing reads are
+also not a problem, since events are not cleared.
+
 ## License
 
 License under either of
