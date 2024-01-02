@@ -16,7 +16,7 @@ bevy_app = { version = "0.12.1", optional = true }
 bevy_ecs = { version = "0.12.1", default-features = false }
 
 [dev-dependencies]
-bevy = "0.12.1"
+bevy = { version = "0.12.1", default-features = false }
 
 [features]
 default = ["bevy_app"]
