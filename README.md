@@ -29,6 +29,12 @@ In order to consume an event, simply call `consume()` on the items read from the
 `ConsumableEventReader`.
 
 ```rust
+use bevy::prelude::Event;
+use bevy_consumable_event::ConsumableEventReader;
+
+#[derive(Event)]
+struct MyEvent;
+
 fn consume_all_events(mut events: ConsumableEventReader<MyEvent>) {
   for mut event in events.read() {
     event.consume();
