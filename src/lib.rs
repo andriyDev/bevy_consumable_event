@@ -250,6 +250,14 @@ impl<'w, E: Event> ConsumableEventReader<'w, E> {
   pub fn read(&mut self) -> ConsumableEventIterator<E> {
     self.events.read()
   }
+
+  /// Reads all unconsumed events, consuming them all along the way.
+  pub fn read_and_consume_all(&mut self) -> impl Iterator<Item = &mut E> {
+    self.events.read().map(|mut event| {
+      event.consume();
+      event.event
+    })
+  }
 }
 
 /// An iterator over the unconsumed events.
@@ -378,7 +386,7 @@ mod tests {
           assert_eq!(events.read().count(), 4);
         },
         |mut events: ConsumableEventReader<TestEvent>| {
-          events.read().for_each(|mut event| event.consume());
+          assert_eq!(events.read_and_consume_all().count(), 4);
         },
         |mut events: ResMut<ConsumableEvents<TestEvent>>| {
           assert_eq!(events.read().count(), 0);
