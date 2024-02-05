@@ -67,18 +67,9 @@ pub use app::ConsumableEventApp;
 /// ```
 #[derive(Resource)]
 pub struct ConsumableEvents<E: Event> {
-  /// The events in the buffer. Some of these events may have already been
-  /// consumed.
-  events: Vec<EventInstance<E>>,
-}
-
-/// A single event in the buffer.
-#[derive(Debug)]
-struct EventInstance<E> {
-  /// The actual event.
-  event: E,
-  /// Whether the event has already been consumed.
-  consumed: bool,
+  /// The events in the buffer. `None` implies that the event there was
+  /// consumed. `Some` means that the event has not been consumed yet.
+  events: Vec<Option<E>>,
 }
 
 // Derived Default impl would incorrectly require E: Default
@@ -92,7 +83,7 @@ impl<E: Event> ConsumableEvents<E> {
   /// "Sends" `event` by writing it to the buffer. [`read`] can then read the
   /// event.
   pub fn send(&mut self, event: E) {
-    self.events.push(EventInstance { event, consumed: false });
+    self.events.push(Some(event));
   }
 
   /// Sends a list of `events` all at once, which can later be [`read`]. This is
@@ -124,7 +115,7 @@ impl<E: Event> ConsumableEvents<E> {
   /// but calling it regularly will reduce memory usage (since the consumed
   /// events cannot be read anyway).
   pub fn clear_consumed(&mut self) {
-    self.events.retain(|event| !event.consumed);
+    self.events.retain(|event| event.is_some());
   }
 }
 
@@ -133,41 +124,34 @@ impl<E: Event> Extend<E> for ConsumableEvents<E> {
   where
     I: IntoIterator<Item = E>,
   {
-    self.events.extend(
-      iter.into_iter().map(|event| EventInstance { event, consumed: false }),
-    );
+    self.events.extend(iter.into_iter().map(|event| Some(event)));
   }
 }
 
 /// Mutable borrow of a consumable event.
 pub struct Consume<'events, E> {
   /// The event itself.
-  event: &'events mut E,
-  /// The consumed flag.
-  consumed: &'events mut bool,
+  event: &'events mut Option<E>,
 }
 
 impl<'events, E> Deref for Consume<'events, E> {
   type Target = E;
 
   fn deref(&self) -> &Self::Target {
-    &self.event
+    self.event.as_ref().expect("The event has not been consumed yet.")
   }
 }
 
 impl<'events, E> DerefMut for Consume<'events, E> {
   fn deref_mut(&mut self) -> &mut Self::Target {
-    &mut self.event
+    self.event.as_mut().expect("The event has not been consumed yet.")
   }
 }
 
 impl<'events, E> Consume<'events, E> {
-  /// "Consumes" the event. "Consumed" simply means that other readers will be
-  /// unable to read (or consume) the event. This function does **not** take
-  /// ownership of the event value itself (although this can be done using
-  /// something like `swap`).
-  pub fn consume(&mut self) {
-    *self.consumed = true;
+  /// Consumes the event.
+  pub fn consume(self) -> E {
+    self.event.take().expect("The event has not been consumed until now.")
   }
 }
 
@@ -252,11 +236,10 @@ impl<'w, E: Event> ConsumableEventReader<'w, E> {
   }
 
   /// Reads all unconsumed events, consuming them all along the way.
-  pub fn read_and_consume_all(&mut self) -> impl Iterator<Item = &mut E> {
-    self.events.read().map(|mut event| {
-      event.consume();
-      event.event
-    })
+  pub fn read_and_consume_all(&mut self) -> impl Iterator<Item = E> + '_ {
+    // TODO: The lifetime bounds of this function are wrong. Rust 2024 edition
+    // fixes this, but for now, this will most likely be fine.
+    self.events.read().map(|event| event.consume())
   }
 }
 
@@ -264,19 +247,14 @@ impl<'w, E: Event> ConsumableEventReader<'w, E> {
 #[derive(Debug)]
 pub struct ConsumableEventIterator<'w, E: Event> {
   /// The iterator being wrapped.
-  iter: IterMut<'w, EventInstance<E>>,
+  iter: IterMut<'w, Option<E>>,
 }
 
 impl<'w, E: Event> Iterator for ConsumableEventIterator<'w, E> {
   type Item = Consume<'w, E>;
 
   fn next(&mut self) -> Option<Self::Item> {
-    self.iter.find(|event_instance| !event_instance.consumed).map(
-      |event_instance| Consume {
-        event: &mut event_instance.event,
-        consumed: &mut event_instance.consumed,
-      },
-    )
+    self.iter.find(|event| event.is_some()).map(|event| Consume { event })
   }
 
   fn size_hint(&self) -> (usize, Option<usize>) {
@@ -302,7 +280,7 @@ mod tests {
     events.send(TestEvent { value: 3 });
     events.send(TestEvent { value: 4 });
 
-    for mut event in events.read().filter(|event| event.value % 3 == 1) {
+    for event in events.read().filter(|event| event.value % 3 == 1) {
       event.consume();
     }
 
@@ -334,7 +312,9 @@ mod tests {
     events.send(TestEvent { value: 3 });
     events.send(TestEvent { value: 4 });
 
-    events.read().skip(2).for_each(|mut event| event.consume());
+    events.read().skip(2).for_each(|event| {
+      event.consume();
+    });
 
     assert_eq!(events.read().count(), 2);
     assert_eq!(events.events.len(), 4);
