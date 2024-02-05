@@ -106,8 +106,8 @@ fn assert_remaining_events(mut events: ConsumableEventReader<MyEvent>) {
 
 ## Caveats
 
-Events and consumable events are not exclusive - it is possible to make add a
-type as a regular event **and** a consumable event. Consumable events don't care
+Events and consumable events are not exclusive - it is possible to add a type as
+a regular event **and** a consumable event. Consumable events don't care
 interact at all with regular events, so everything will work fine. It just may
 be confusing.
 
