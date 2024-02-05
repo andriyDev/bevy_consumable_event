@@ -1,7 +1,7 @@
 [package]
-name = "bevy_consumable_event"
-version = "0.1.0"
 edition = "2021"
+name = "bevy_consumable_event"
+version = "0.2.0"
 
 description = "A crate to add events to Bevy that can be consumed."
 
@@ -14,11 +14,11 @@ categories = ["game-development"]
 keywords = ["bevy", "consume", "event"]
 
 [dependencies]
-bevy_app = { version = "0.12.1", optional = true }
-bevy_ecs = { version = "0.12.1", default-features = false }
+bevy_app = {version = "0.12.1", optional = true}
+bevy_ecs = {version = "0.12.1", default-features = false}
 
 [dev-dependencies]
-bevy = { version = "0.12.1", default-features = false }
+bevy = {version = "0.12.1", default-features = false}
 
 [features]
 default = ["bevy_app"]
