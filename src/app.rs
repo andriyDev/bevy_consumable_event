@@ -1,4 +1,4 @@
-use bevy_app::{App, First};
+use bevy_app::{App, First, SubApp};
 use bevy_ecs::{event::Event, system::ResMut};
 
 use crate::ConsumableEvents;
@@ -32,6 +32,20 @@ pub trait ConsumableEventApp {
 }
 
 impl ConsumableEventApp for App {
+  fn add_consumable_event<E: Event>(&mut self) -> &mut Self {
+    self
+      .init_resource::<ConsumableEvents<E>>()
+      .add_systems(First, clear_all_events::<E>)
+  }
+
+  fn add_persistent_consumable_event<E: Event>(&mut self) -> &mut Self {
+    self
+      .init_resource::<ConsumableEvents<E>>()
+      .add_systems(First, clear_consumed_events::<E>)
+  }
+}
+
+impl ConsumableEventApp for SubApp {
   fn add_consumable_event<E: Event>(&mut self) -> &mut Self {
     self
       .init_resource::<ConsumableEvents<E>>()
