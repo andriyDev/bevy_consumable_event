@@ -58,6 +58,7 @@ fn clear_consumed_events<E: Event>(mut events: ResMut<ConsumableEvents<E>>) {
 #[cfg(test)]
 mod tests {
   use crate::*;
+  use bevy::ecs::schedule::ScheduleLabel;
   use bevy::prelude::*;
 
   #[derive(Event, Default)]
@@ -90,6 +91,7 @@ mod tests {
   #[test]
   fn add_consumable_event() {
     let mut app = App::empty();
+    app.main_mut().update_schedule = Some(Main.intern());
     app.add_consumable_event::<TestEvent>().add_systems(
       Main,
       (run_first_schedule, write_events, consume_odds_and_halve_evens).chain(),
@@ -97,7 +99,7 @@ mod tests {
 
     app.update();
     let values = app
-      .world
+      .world_mut()
       .resource_mut::<ConsumableEvents<TestEvent>>()
       .read()
       .map(|event| event.value)
@@ -106,7 +108,7 @@ mod tests {
 
     app.update();
     let values = app
-      .world
+      .world_mut()
       .resource_mut::<ConsumableEvents<TestEvent>>()
       .read()
       .map(|event| event.value)
@@ -118,6 +120,7 @@ mod tests {
   #[test]
   fn add_persistent_consumable_event() {
     let mut app = App::empty();
+    app.main_mut().update_schedule = Some(Main.intern());
     app.add_persistent_consumable_event::<TestEvent>().add_systems(
       Main,
       (run_first_schedule, write_events, consume_odds_and_halve_evens).chain(),
@@ -125,7 +128,7 @@ mod tests {
 
     app.update();
     let values = app
-      .world
+      .world_mut()
       .resource_mut::<ConsumableEvents<TestEvent>>()
       .read()
       .map(|event| event.value)
@@ -134,7 +137,7 @@ mod tests {
 
     app.update();
     let values = app
-      .world
+      .world_mut()
       .resource_mut::<ConsumableEvents<TestEvent>>()
       .read()
       .map(|event| event.value)
